@@ -11,7 +11,7 @@ function KeywordRuleRow({ rule, onDelete, onUpdate }) {
     defaultValues: {
       sector: rule.sector,
       keyword: rule.keyword,
-      enabled: rule.enabled,
+      impactScore: rule.impactScore ?? 1,
     },
   });
 
@@ -32,9 +32,9 @@ function KeywordRuleRow({ rule, onDelete, onUpdate }) {
           <span>Keyword</span>
           <input type="text" {...form.register("keyword", { required: true })} />
         </label>
-        <label className="checkbox">
-          <input type="checkbox" {...form.register("enabled")} />
-          <span>Enabled</span>
+        <label className="label">
+          <span>Impact score</span>
+          <input type="number" min="1" max="5" {...form.register("impactScore", { valueAsNumber: true })} />
         </label>
       </div>
       <div className="row">
@@ -71,17 +71,17 @@ export function AdminPage() {
   });
 
   const form = useForm({
-    defaultValues: { sector: "GENERAL", keyword: "", enabled: true },
+    defaultValues: { sector: "GENERAL", keyword: "", impactScore: 1 },
   });
 
   const createRuleMutation = useMutation({
     mutationFn: (payload) => adminApi.createKeywordRule(payload),
     onSuccess: () => {
       toast.success("Keyword rule created.");
-      form.reset({ sector: "GENERAL", keyword: "", enabled: true });
+      form.reset({ sector: "GENERAL", keyword: "", impactScore: 1 });
       queryClient.invalidateQueries({ queryKey: ["admin", "keywordRules"] });
     },
-    onError: () => toast.error("Unable to create keyword rule."),
+    onError: (error) => toast.error(error.response?.data?.message ?? "Unable to create keyword rule."),
   });
 
   const deleteRuleMutation = useMutation({
@@ -90,7 +90,7 @@ export function AdminPage() {
       toast.success("Keyword rule deleted.");
       queryClient.invalidateQueries({ queryKey: ["admin", "keywordRules"] });
     },
-    onError: () => toast.error("Unable to delete keyword rule."),
+    onError: (error) => toast.error(error.response?.data?.message ?? "Unable to delete keyword rule."),
   });
 
   const updateRuleMutation = useMutation({
@@ -99,7 +99,7 @@ export function AdminPage() {
       toast.success("Keyword rule updated.");
       queryClient.invalidateQueries({ queryKey: ["admin", "keywordRules"] });
     },
-    onError: () => toast.error("Unable to update keyword rule."),
+    onError: (error) => toast.error(error.response?.data?.message ?? "Unable to update keyword rule."),
   });
 
   return (
@@ -120,17 +120,20 @@ export function AdminPage() {
         <h3>Fetch Logs</h3>
         {logsQuery.isLoading ? <p className="muted">Loading logs...</p> : null}
         {logsQuery.isError ? <StatusState title="Failed to load fetch logs." /> : null}
+        {!logsQuery.isLoading && !logsQuery.isError && (!logsQuery.data || logsQuery.data.length === 0) ? (
+          <StatusState title="No fetch logs yet" description="Run a manual fetch to see logs here." />
+        ) : null}
         <div className="stack">
           {logsQuery.data?.map((log) => (
             <article className="subtle-card" key={log.id}>
               <div className="row space-between">
                 <strong>{log.status}</strong>
-                <small className="muted">{formatDateTime(log.startedAt)}</small>
+                <small className="muted">{formatDateTime(log.fetchedAt)}</small>
               </div>
               <p className="muted">
-                fetched={log.fetchedCount} processed={log.processedCount}
+                fetched={log.articlesFetched} saved={log.articlesSaved}
               </p>
-              {log.message ? <small>{log.message}</small> : null}
+              {log.errorMessage ? <small>{log.errorMessage}</small> : null}
             </article>
           ))}
         </div>
@@ -153,9 +156,9 @@ export function AdminPage() {
             <span>Keyword</span>
             <input type="text" {...form.register("keyword", { required: true })} />
           </label>
-          <label className="checkbox">
-            <input type="checkbox" {...form.register("enabled")} />
-            <span>Enabled</span>
+          <label className="label">
+            <span>Impact score</span>
+            <input type="number" min="1" max="5" {...form.register("impactScore", { valueAsNumber: true })} />
           </label>
           <button className="button" type="submit">
             Add rule
@@ -163,6 +166,11 @@ export function AdminPage() {
         </form>
 
         <div className="stack">
+          {rulesQuery.isLoading ? <p className="muted">Loading keyword rules...</p> : null}
+          {rulesQuery.isError ? <StatusState title="Failed to load keyword rules." /> : null}
+          {!rulesQuery.isLoading && !rulesQuery.isError && (!rulesQuery.data || rulesQuery.data.length === 0) ? (
+            <StatusState title="No keyword rules yet" description="Create your first rule above." />
+          ) : null}
           {rulesQuery.data?.map((rule) => (
             <KeywordRuleRow
               key={rule.id}

@@ -27,6 +27,8 @@ const isTokenProbablyValid = (token) => {
   return exp * 1000 > Date.now() + 5000;
 };
 
+const normalizeRole = (role) => String(role ?? "USER").replace("ROLE_", "");
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -56,7 +58,7 @@ export function AuthProvider({ children }) {
         setUser({
           userId: payload.userId ?? null,
           username: payload.sub ?? null,
-          role: payload.role?.replace("ROLE_", "") ?? "USER",
+          role: normalizeRole(payload.role),
         });
       } catch {
         hardLogout();
@@ -71,7 +73,7 @@ export function AuthProvider({ children }) {
     setUser({
       userId: payload.userId,
       username: payload.username,
-      role: payload.role,
+      role: normalizeRole(payload.role),
     });
   }, []);
 
